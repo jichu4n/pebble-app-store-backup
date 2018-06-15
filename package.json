@@ -1,0 +1,29 @@
+{
+  "name": "pebble-app-store-backup",
+  "version": "0.1.0",
+  "description": "Tool to backup Pebble app store data.",
+  "scripts": {
+    "watch": "tsc -w",
+    "metadata-scraper": "ts-node src/metadata-scraper.ts",
+    "scrape-metadata": "npm run metadata-scraper -- --shouldScrapeWatchfaces --shouldScrapeApps"
+  },
+  "repository": "jichu4n/pebble-app-store-backup",
+  "author": "Chuan Ji",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "ts-node": "^6.1.1",
+    "typescript": "^2.9.2"
+  },
+  "dependencies": {
+    "@types/fs-extra": "^5.0.3",
+    "@types/minimist": "^1.2.0",
+    "@types/node": "^10.3.3",
+    "@types/request-promise-native": "^1.0.15",
+    "@types/winston": "^2.3.9",
+    "fs-extra": "^6.0.1",
+    "minimist": "^1.2.0",
+    "request": "^2.87.0",
+    "request-promise-native": "^1.0.5",
+    "winston": "^3.0.0"
+  }
+}
