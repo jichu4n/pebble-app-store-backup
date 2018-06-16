@@ -5,7 +5,9 @@
   "scripts": {
     "watch": "tsc -w",
     "metadata-scraper": "ts-node src/metadata-scraper.ts",
-    "scrape-metadata": "npm run metadata-scraper -- --shouldScrapeWatchfaces --shouldScrapeApps"
+    "blob-scraper": "ts-node src/blob-scraper.ts",
+    "scrape-metadata": "npm run metadata-scraper -- --shouldScrapeWatchfaces --shouldScrapeApps",
+    "scrape-blob": "npm run blob-scraper -- --shouldScrapePbwFiles"
   },
   "repository": "jichu4n/pebble-app-store-backup",
   "author": "Chuan Ji",
@@ -15,17 +17,23 @@
     "typescript": "^2.9.2"
   },
   "dependencies": {
+    "@types/content-disposition": "^0.5.2",
     "@types/fs-extra": "^5.0.3",
     "@types/lodash": "^4.14.109",
     "@types/minimist": "^1.2.0",
     "@types/node": "^10.3.3",
+    "@types/papaparse": "^4.1.34",
     "@types/request-promise-native": "^1.0.15",
+    "@types/uuid": "^3.4.3",
     "@types/winston": "^2.3.9",
+    "content-disposition": "^0.5.2",
     "fs-extra": "^6.0.1",
     "lodash": "^4.17.10",
     "minimist": "^1.2.0",
+    "papaparse": "^4.5.0",
     "request": "^2.87.0",
     "request-promise-native": "^1.0.5",
+    "uuid": "^3.2.1",
     "winston": "^3.0.0"
   }
 }

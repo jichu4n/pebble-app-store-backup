@@ -14,7 +14,9 @@ import {
  * Only fields needed for backup are listed here.
  */
 export interface Listing {
+  id: string;
   latest_release: {
+    js_md5: string;
     pbw_file: string;
   };
   screenshot_images: {[size: string]: string}[];
@@ -37,51 +39,48 @@ export class MetadataFileReader {
 
   getAllListings(): Promise<Listing[]> {
     if (!this.allListingsPromise) {
-      let metadataDirPath =
-        this.options.metadataDirPath || DEFAULT_OUTPUT_DIR_PATH;
-      this.watchfacesMetadataFilesPromise = this.readMetadataFiles(
-        path.join(metadataDirPath, WATCHFACES_DIR_NAME)
-      );
-      this.appsMetadataFilesPromise = this.watchfacesMetadataFilesPromise.then(
-        () => this.readMetadataFiles(path.join(metadataDirPath, APPS_DIR_NAME))
-      );
-      this.allListingsPromise = Promise.all([
-        this.watchfacesMetadataFilesPromise,
-        this.appsMetadataFilesPromise,
-      ]).then((metadataFiles: MetadataFile[][]) =>
-        _(metadataFiles)
+      this.allListingsPromise = (async () => {
+        let metadataDirPath =
+          this.options.metadataDirPath || DEFAULT_OUTPUT_DIR_PATH;
+        let metadataFiles = [
+          ...(await this.readMetadataFiles(
+            path.join(metadataDirPath, WATCHFACES_DIR_NAME)
+          )),
+          ...(await this.readMetadataFiles(
+            path.join(metadataDirPath, APPS_DIR_NAME)
+          )),
+        ];
+        return _(metadataFiles)
           .flatten()
           .map('listings')
           .flatten()
-          .value()
-      );
+          .value();
+      })();
     }
     return this.allListingsPromise;
   }
 
-  private readMetadataFiles(dirPath: string): Promise<MetadataFile[]> {
-    return fs.readdir(dirPath).then((fileNames: string[]) =>
-      fileNames.reduce(
-        (resultsPromise: Promise<MetadataFile[]>, fileName: string) =>
-          resultsPromise.then((results: MetadataFile[]) => {
-            let filePath = path.join(dirPath, fileName);
-            logger.info(`Loading metadata from ${filePath}`);
-            return fs.readJson(filePath).then((resultJson: any) => [
-              ...results,
-              {
-                filePath,
-                listings: resultJson['data'] as Listing[],
-              },
-            ]);
-          }),
-        Promise.resolve([])
-      )
+  private async readMetadataFiles(dirPath: string): Promise<MetadataFile[]> {
+    let fileNames = await fs.readdir(dirPath);
+    return fileNames.reduce(
+      async (resultsPromise: Promise<MetadataFile[]>, fileName: string) => {
+        let results = await resultsPromise;
+        let filePath = path.join(dirPath, fileName);
+        logger.info(`Loading metadata from ${filePath}`);
+        let resultJson = await fs.readJson(filePath);
+        return [
+          ...results,
+          {
+            filePath,
+            listings: resultJson['data'] as Listing[],
+          },
+        ];
+      },
+      Promise.resolve([] as MetadataFile[])
     );
   }
 
   private options: MetadataFileReaderOptions;
-  private appsMetadataFilesPromise: Promise<MetadataFile[]>;
-  private watchfacesMetadataFilesPromise: Promise<MetadataFile[]>;
   private allListingsPromise: Promise<Listing[]>;
 }
 
