@@ -15,16 +15,16 @@ import {
 } from './metadata';
 
 export const DEFAULT_OUTPUT_DIR_PATH = path.normalize(
-  path.join(__dirname, '..', 'data')
+  path.join(__dirname, '..', 'data', 'blobs')
 );
-export const PBW_DIR_NAME = 'pbw';
-export const IMAGE_DIR_NAME = 'images';
 export const BLOB_SCRAPER_LOG_FILE_NAME = 'log.csv';
 
 export interface BlobScraperLogRecord {
   listingId: string;
+  type: string;
   url: string;
   etag: string;
+  origFileName: string;
   fileName: string;
   sha1: string;
 }
@@ -40,153 +40,159 @@ export class BlobScraper {
     this.metadataFileReader = new MetadataFileReader(options);
   }
 
-  scrapePbwFiles() {
-    this.applyToListings(async (listing: Listing, index: number) =>
-      this.scrapeBlob(
-        index,
-        listing.id,
-        _.get(listing, ['latest_release', 'pbw_file'], ''),
-        PBW_DIR_NAME
-      )
-    );
-  }
-
-  private async applyToListings(
-    fn: (listing: Listing, index: number) => Promise<void>
-  ) {
+  async scrapeBlobs() {
     let listings = await this.metadataFileReader.getAllListings();
     if (this.options.maxNumFiles) {
       listings = listings.slice(0, this.options.maxNumFiles);
     }
-    listings.reduce(async (indexPromise: Promise<number>, listing: Listing) => {
-      let index = await indexPromise;
-      await fn(listing, index);
-      return index + 1;
-    }, Promise.resolve(0));
+    for (let i = 0; i < listings.length; ++i) {
+      let listing = listings[i];
+      let records = await this.getBlobScraperLogRecords(listing.id);
+      if (
+        records &&
+        _.every(
+          await records.map((record) =>
+            this.isOutputFileValid(listing.id, record)
+          )
+        )
+      ) {
+        logger.info(`[${i}] Skipping ${listing.id}`);
+        continue;
+      }
+      logger.info(`[${i}] Processing ${listing.id}`);
+      records = _.filter([
+        await this.scrapeBlob(
+          i,
+          listing.id,
+          'pbw',
+          _.get(listing, ['latest_release', 'pbw_file'], '')
+        ),
+        ...(await Promise.all(
+          _
+            .flatten((listing.screenshot_images || []).map(Object.entries))
+            .map(([size, url]) =>
+              this.scrapeBlob(i, listing.id, `screenshot_images-${size}`, url)
+            )
+        )),
+        ...(await Promise.all(
+          Object.entries(listing.list_image).map(([size, url]) =>
+            this.scrapeBlob(i, listing.id, `list_image-${size}`, url)
+          )
+        )),
+      ]);
+      await this.writeBlobScraperLogRecords(listing.id, records);
+    }
   }
 
   private async scrapeBlob(
     index: number,
     listingId: string,
-    url: string,
-    dirName: string
-  ): Promise<void> {
+    type: string,
+    url: string
+  ): Promise<BlobScraperLogRecord> {
+    if (!url) {
+      logger.info(`[${index}] Missing URL for ${type}, skipping`);
+      return null;
+    }
     let record: BlobScraperLogRecord = {
-      listingId: listingId,
+      listingId,
+      type,
       url,
+      origFileName: '',
       fileName: '',
       etag: '',
       sha1: '',
     };
-    if (!url) {
-      logger.info(`[${index}] Missing URL, skipping`);
-    } else {
-      let hasExistingValidOutputFile = false;
-      let records = await this.getBlobScraperLogRecords(dirName);
-      if (records.has(url)) {
-        record = records.get(url);
-        let outputFilePath = this.getOutputFilePath(dirName, record);
-        if (await fs.pathExists(outputFilePath)) {
-          let content = await fs.readFile(outputFilePath);
-          hasExistingValidOutputFile = this.getSha1Hash(content) == record.sha1;
-        }
-      }
-      if (hasExistingValidOutputFile) {
-        logger.info(
-          `[${index}] Skipping valid existing output file for ${url}`
-        );
-      } else {
-        record.fileName = '';
-        record.etag = '';
-        record.sha1 = '';
-        try {
-          logger.info(`[${index}] Fetching from ${url}`);
-          let response: request.FullResponse = await request.get(url, {
-            resolveWithFullResponse: true,
-          });
-          record.fileName =
-            `${uuidv4()}--` +
-            (response.headers['content-disposition']
-              ? contentDisposition.parse(
-                  response.headers['content-disposition']
-                ).parameters['filename']
-              : '');
-          record.etag = _.trim((response.headers['etag'] || '') as string, '"');
-          record.sha1 = this.getSha1Hash(response.body);
-          logger.info(`[${index}] --> ${record.fileName}`);
-          await fs.outputFile(
-            this.getOutputFilePath(dirName, record),
-            response.body
-          );
-        } catch (e) {
-          logger.error(`[${index}] Failed to scrape ${url}: ${e}`);
-        }
-      }
+    try {
+      logger.info(`[${index}] Fetching ${type} from ${url}`);
+      let response: request.FullResponse = await request.get(url, {
+        resolveWithFullResponse: true,
+      });
+      record.origFileName = response.headers['content-disposition']
+        ? contentDisposition.parse(response.headers['content-disposition'])
+            .parameters['filename']
+        : '';
+      record.fileName = uuidv4();
+      record.etag = _.trim((response.headers['etag'] || '') as string, '"');
+
+      record.sha1 = this.getSha1Hash(response.body);
+      logger.info(`[${index}] ${type} --> ${record.fileName}`);
+      await fs.outputFile(
+        this.getOutputFilePath(listingId, record),
+        response.body
+      );
+    } catch (e) {
+      logger.error(`[${index}] Failed to scrape ${type} from ${url}: ${e}`);
     }
-    return this.writeBlobScraperLogRecord(dirName, index, record);
+    return record;
   }
 
-  private writeBlobScraperLogRecord(
-    dirName: string,
-    index: number,
-    record: BlobScraperLogRecord
-  ) {
-    return ((index == 0 ? fs.outputFile : fs.appendFile) as (
-      filePath: string,
-      data: any
-    ) => Promise<void>)(
-      this.getBlobScraperLogFilePath(dirName),
+  private writeBlobScraperLogRecords(
+    listingId: string,
+    records: BlobScraperLogRecord[]
+  ): Promise<void> {
+    return fs.outputFile(
+      this.getBlobScraperLogFilePath(listingId),
       papa.unparse(
         {
-          fields: ['url', 'etag', 'fileName', 'sha1'],
-          data: [record.url, record.etag, record.fileName, record.sha1],
+          fields: ['url', 'etag', 'origFileName', 'fileName', 'sha1'],
+          data: records.map((record) => [
+            record.url,
+            record.etag,
+            record.origFileName,
+            record.fileName,
+            record.sha1,
+          ]),
         },
         {
-          header: index == 0,
+          header: true,
         } as papa.UnparseConfig
       ) + '\r\n'
     );
   }
 
   private async getBlobScraperLogRecords(
-    dirName: string
-  ): Promise<Map<string, BlobScraperLogRecord>> {
-    if (!this.blobScraperLogRecordsByDirName.has(dirName)) {
-      this.blobScraperLogRecordsByDirName.set(
-        dirName,
-        (async () => {
-          let blobScraperLogFilePath = this.getBlobScraperLogFilePath(dirName);
-          logger.info(
-            `Loading blob scraper log records from ${blobScraperLogFilePath}`
-          );
-          if (!(await fs.pathExists(blobScraperLogFilePath))) {
-            return new Map<string, BlobScraperLogRecord>();
-          }
-          let content = await fs.readFile(blobScraperLogFilePath, 'utf8');
-          return new Map<string, BlobScraperLogRecord>(
-            (papa.parse(content, {
-              header: true,
-            }).data as BlobScraperLogRecord[]).map(
-              (record: BlobScraperLogRecord) =>
-                [record.url, record] as [string, BlobScraperLogRecord]
-            )
-          );
-        })()
-      );
+    listingId: string
+  ): Promise<BlobScraperLogRecord[]> {
+    let blobScraperLogFilePath = this.getBlobScraperLogFilePath(listingId);
+    logger.info(
+      `Loading blob scraper log records from ${blobScraperLogFilePath}`
+    );
+    if (!(await fs.pathExists(blobScraperLogFilePath))) {
+      return null;
     }
-    return this.blobScraperLogRecordsByDirName.get(dirName);
+    let content = await fs.readFile(blobScraperLogFilePath, 'utf8');
+    return papa.parse(content, {
+      header: true,
+    }).data as BlobScraperLogRecord[];
   }
 
-  private getBlobScraperLogFilePath(dirName: string): string {
+  private async isOutputFileValid(
+    listingId: string,
+    record: BlobScraperLogRecord
+  ): Promise<boolean> {
+    let hasExistingValidOutputFile = false;
+    if (!record.fileName || !record.sha1) {
+      return false;
+    }
+    let outputFilePath = this.getOutputFilePath(listingId, record);
+    if (!(await fs.pathExists(outputFilePath))) {
+      return false;
+    }
+    let content = await fs.readFile(outputFilePath);
+    return this.getSha1Hash(content) == record.sha1;
+  }
+
+  private getBlobScraperLogFilePath(listingId: string) {
     return path.join(
       this.options.outputDirPath,
-      dirName,
+      listingId,
       BLOB_SCRAPER_LOG_FILE_NAME
     );
   }
 
-  private getOutputFilePath(dirName: string, record: BlobScraperLogRecord) {
-    return path.join(this.options.outputDirPath, dirName, record.fileName);
+  private getOutputFilePath(listingId: string, record: BlobScraperLogRecord) {
+    return path.join(this.options.outputDirPath, listingId, record.fileName);
   }
 
   private getSha1Hash(content: string | Buffer) {
@@ -198,20 +204,13 @@ export class BlobScraper {
 
   private options: BlobScraperOptions;
   private metadataFileReader: MetadataFileReader;
-  private blobScraperLogRecordsByDirName: Map<
-    string,
-    Promise<Map<string, BlobScraperLogRecord>>
-  > = new Map();
 }
 
 if (require.main === module) {
   let args = minimist(process.argv.slice(2), {
     string: ['outputDirPath'],
-    boolean: ['shouldScrapePbwFiles', 'shouldScrapeImages'],
     default: {
       outputDirPath: DEFAULT_OUTPUT_DIR_PATH,
-      shouldScrapePbwFiles: false,
-      shouldScrapeImages: false,
       maxNumFiles: null,
     },
   });
@@ -219,10 +218,5 @@ if (require.main === module) {
     outputDirPath: args.outputDirPath,
     maxNumFiles: args.maxNumFiles,
   });
-  let result = Promise.resolve();
-  if (args.shouldScrapePbwFiles) {
-    result = result.then(() => blobScraper.scrapePbwFiles());
-  } else {
-    logger.info('Skipping PBW files (enable with --shouldScrapePbwFiles)');
-  }
+  blobScraper.scrapeBlobs();
 }

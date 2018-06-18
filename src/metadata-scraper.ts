@@ -36,6 +36,7 @@ export class MetadataScraper {
       0
     );
   }
+
   scrapeApps(): Promise<void> {
     logger.info('Scraping apps');
     return this.scrapePageToFile(
