@@ -50,29 +50,35 @@ export class BlobScraper {
       let listing = listings[i];
       logger.info(`[${i}] Processing ${listing.id}`);
       let records = await this.getBlobIndexRecords(listing.id);
-      let blobSources: BlobSource[] = _.filter([
-        {type: 'pbw', url: _.get(listing, ['latest_release', 'pbw_file'], '')},
-        ..._
-          .flatten((listing.screenshot_images || []).map(Object.entries))
-          .map(([size, url]) => ({
-            type: `screenshot_images-${size}`,
+      let blobSources: BlobSource[] = _.filter(
+        [
+          {
+            type: 'pbw',
+            url: _.get(listing, ['latest_release', 'pbw_file'], ''),
+          },
+          ..._
+            .flatten((listing.screenshot_images || []).map(Object.entries))
+            .map(([size, url]) => ({
+              type: `screenshot_images-${size}`,
+              url,
+            })),
+          ..._
+            .flatten((listing.header_images || []).map(Object.entries))
+            .map(([size, url]) => ({
+              type: `header_images-${size}`,
+              url,
+            })),
+          ...Object.entries(listing.list_image || {}).map(([size, url]) => ({
+            type: `list_image-${size}`,
             url,
           })),
-        ..._
-          .flatten((listing.header_images || []).map(Object.entries))
-          .map(([size, url]) => ({
-            type: `header_images-${size}`,
+          ...Object.entries(listing.icon_image || {}).map(([size, url]) => ({
+            type: `icon_image-${size}`,
             url,
           })),
-        ...Object.entries(listing.list_image || {}).map(([size, url]) => ({
-          type: `list_image-${size}`,
-          url,
-        })),
-        ...Object.entries(listing.icon_image || {}).map(([size, url]) => ({
-          type: `icon_image-${size}`,
-          url,
-        })),
-      ]);
+        ],
+        'url'
+      );
       let newRecords = _.filter(
         await Promise.all(
           blobSources.map(async (blobSource) => {
