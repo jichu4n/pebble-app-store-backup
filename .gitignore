@@ -41,5 +41,5 @@ dist/**/*
 coverage
 
 # Scraped blobs.
-data/pbw/*
-data/images/*
+data/blobs/*/*
+!data/blobs/*/index.csv

@@ -7,7 +7,7 @@
     "metadata-scraper": "ts-node src/metadata-scraper.ts",
     "blob-scraper": "ts-node src/blob-scraper.ts",
     "scrape-metadata": "npm run metadata-scraper -- --shouldScrapeWatchfaces --shouldScrapeApps",
-    "scrape-blob": "npm run blob-scraper -- --shouldScrapePbwFiles"
+    "scrape-blob": "npm run blob-scraper"
   },
   "repository": "jichu4n/pebble-app-store-backup",
   "author": "Chuan Ji",

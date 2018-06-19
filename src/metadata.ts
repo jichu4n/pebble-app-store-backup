@@ -16,11 +16,11 @@ import {
 export interface Listing {
   id: string;
   latest_release: {
-    js_md5: string;
     pbw_file: string;
   };
   screenshot_images: {[size: string]: string}[];
   list_image: {[size: string]: string};
+  icon_image: {[size: string]: string};
 }
 
 interface MetadataFile {
