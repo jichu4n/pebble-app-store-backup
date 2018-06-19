@@ -34,10 +34,6 @@
   version "10.3.3"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-10.3.3.tgz#8798d9e39af2fa604f715ee6a6b19796528e46c3"
 
-"@types/papaparse@^4.1.34":
-  version "4.1.34"
-  resolved "https://registry.yarnpkg.com/@types/papaparse/-/papaparse-4.1.34.tgz#893628fbb70243313e46d1b962989c023184783b"
-
 "@types/request-promise-native@^1.0.15":
   version "1.0.15"
   resolved "https://registry.yarnpkg.com/@types/request-promise-native/-/request-promise-native-1.0.15.tgz#5b3369fc6aaf9e7fef7b6b688aef4c5759623e16"
@@ -401,10 +397,6 @@ oauth-sign@~0.8.2:
 one-time@0.0.4:
   version "0.0.4"
   resolved "https://registry.yarnpkg.com/one-time/-/one-time-0.0.4.tgz#f8cdf77884826fe4dff93e3a9cc37b1e4480742e"
-
-papaparse@^4.5.0:
-  version "4.5.0"
-  resolved "https://registry.yarnpkg.com/papaparse/-/papaparse-4.5.0.tgz#fb625d390b6e5d544db20658ce3665002c3d8e80"
 
 performance-now@^2.1.0:
   version "2.1.0"

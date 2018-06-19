@@ -42,4 +42,4 @@ coverage
 
 # Scraped blobs.
 data/blobs/*/*
-!data/blobs/*/index.csv
+!data/blobs/*/index.json

@@ -3,7 +3,6 @@ import * as crypto from 'crypto';
 import * as fs from 'fs-extra';
 import * as _ from 'lodash';
 import * as minimist from 'minimist';
-import * as papa from 'papaparse';
 import * as path from 'path';
 import * as request from 'request-promise-native';
 import * as uuidv4 from 'uuid/v4';
@@ -13,7 +12,7 @@ import {MetadataFileReader, MetadataFileReaderOptions} from './metadata';
 export const DEFAULT_OUTPUT_DIR_PATH = path.normalize(
   path.join(__dirname, '..', 'data', 'blobs')
 );
-export const BLOB_INDEX_FILE_NAME = 'index.csv';
+export const BLOB_INDEX_FILE_NAME = 'index.json';
 
 interface BlobSource {
   type: string;
@@ -74,23 +73,25 @@ export class BlobScraper {
           url,
         })),
       ]);
-      let newRecords = await Promise.all(
-        blobSources.map(async (blobSource) => {
-          let record = _.find(
-            records,
-            (record: BlobIndexRecord) =>
-              record.type == blobSource.type && record.url == blobSource.url
-          );
-          if (!record) {
-            logger.info(`[${i}] No existing record for ${blobSource.type}`);
-          } else if (!(await this.isOutputFileValid(listing.id, record))) {
-            logger.info(`[${i}] No valid output file for ${blobSource.type}`);
-          } else {
-            logger.info(`[${i}] Skipping ${blobSource.type}`);
-            return record;
-          }
-          return await this.scrapeBlob(i, listing.id, blobSource);
-        })
+      let newRecords = _.filter(
+        await Promise.all(
+          blobSources.map(async (blobSource) => {
+            let record = _.find(
+              records,
+              (record: BlobIndexRecord) =>
+                record.type == blobSource.type && record.url == blobSource.url
+            );
+            if (!record) {
+              logger.info(`[${i}] No existing record for ${blobSource.type}`);
+            } else if (!(await this.isOutputFileValid(listing.id, record))) {
+              logger.info(`[${i}] No valid output file for ${blobSource.type}`);
+            } else {
+              logger.info(`[${i}] Skipping ${blobSource.type}`);
+              return record;
+            }
+            return await this.scrapeBlob(i, listing.id, blobSource);
+          })
+        )
       );
       await this.writeBlobIndexRecords(listing.id, newRecords);
     }
@@ -146,36 +147,7 @@ export class BlobScraper {
     listingId: string,
     records: BlobIndexRecord[]
   ): Promise<void> {
-    return fs.outputFile(
-      this.getBlobIndexFilePath(listingId),
-      papa.unparse(
-        {
-          fields: [
-            'listingId',
-            'type',
-            'url',
-            'etag',
-            'contentType',
-            'origFileName',
-            'fileName',
-            'sha1',
-          ],
-          data: records.map((record) => [
-            record.listingId,
-            record.type,
-            record.url,
-            record.etag,
-            record.contentType,
-            record.origFileName,
-            record.fileName,
-            record.sha1,
-          ]),
-        },
-        {
-          header: true,
-        } as papa.UnparseConfig
-      ) + '\r\n'
-    );
+    return fs.outputJson(this.getBlobIndexFilePath(listingId), records);
   }
 
   private async getBlobIndexRecords(
@@ -186,10 +158,7 @@ export class BlobScraper {
     if (!(await fs.pathExists(blobIndexFilePath))) {
       return [];
     }
-    let content = await fs.readFile(blobIndexFilePath, 'utf8');
-    return papa.parse(content, {
-      header: true,
-    }).data as BlobIndexRecord[];
+    return _.filter(await fs.readJson(blobIndexFilePath));
   }
 
   private async isOutputFileValid(
