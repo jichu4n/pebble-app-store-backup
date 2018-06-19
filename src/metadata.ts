@@ -19,6 +19,7 @@ export interface Listing {
     pbw_file: string;
   };
   screenshot_images: {[size: string]: string}[];
+  header_images: {[size: string]: string}[];
   list_image: {[size: string]: string};
   icon_image: {[size: string]: string};
 }

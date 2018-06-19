@@ -59,6 +59,12 @@ export class BlobScraper {
             type: `screenshot_images-${size}`,
             url,
           })),
+        ..._
+          .flatten((listing.header_images || []).map(Object.entries))
+          .map(([size, url]) => ({
+            type: `header_images-${size}`,
+            url,
+          })),
         ...Object.entries(listing.list_image || {}).map(([size, url]) => ({
           type: `list_image-${size}`,
           url,
