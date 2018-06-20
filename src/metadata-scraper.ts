@@ -110,15 +110,16 @@ if (require.main === module) {
     outputDirPath: args.outputDirPath,
     maxNumPages: args.maxNumPages,
   });
-  let result = Promise.resolve();
-  if (args.shouldScrapeWatchfaces) {
-    result = result.then(() => metadataScraper.scrapeWatchfaces());
-  } else {
-    logger.info('Skipping watchfaces (enable with --shouldScrapeWatchfaces)');
-  }
-  if (args.shouldScrapeApps) {
-    result = result.then(() => metadataScraper.scrapeApps());
-  } else {
-    logger.info('Skipping apps (enable with --shouldScrapeApps)');
-  }
+  (async () => {
+    if (args.shouldScrapeWatchfaces) {
+      await metadataScraper.scrapeWatchfaces();
+    } else {
+      logger.info('Skipping watchfaces (enable with --shouldScrapeWatchfaces)');
+    }
+    if (args.shouldScrapeApps) {
+      await metadataScraper.scrapeApps();
+    } else {
+      logger.info('Skipping apps (enable with --shouldScrapeApps)');
+    }
+  })();
 }
