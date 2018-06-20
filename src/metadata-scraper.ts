@@ -1,4 +1,5 @@
 import * as fs from 'fs-extra';
+import * as _ from 'lodash';
 import * as minimist from 'minimist';
 import * as path from 'path';
 import * as request from 'request-promise-native';
@@ -74,7 +75,7 @@ export class MetadataScraper {
         hasNextPage = resultJson['links'] && resultJson['links']['nextPage'];
         let outputFilePath = path.join(
           outputDirPath,
-          `${numScrapedPages.toString().padStart(FILE_NAME_WIDTH, '0')}.json`
+          `${_.padStart(numScrapedPages.toString(), FILE_NAME_WIDTH, '0')}.json`
         );
         logger.info(`[${numScrapedPages}] Writing to file ${outputFilePath}`);
         return fs.outputJson(outputFilePath, resultJson);
