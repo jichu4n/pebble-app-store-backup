@@ -5,7 +5,6 @@ import * as _ from 'lodash';
 import * as minimist from 'minimist';
 import * as path from 'path';
 import * as request from 'request-promise-native';
-import * as uuidv4 from 'uuid/v4';
 import logger from './logger';
 import {MetadataFileReader, MetadataFileReaderOptions} from './metadata';
 
@@ -131,7 +130,7 @@ export class BlobScraper {
         ? contentDisposition.parse(response.headers['content-disposition'])
             .parameters['filename']
         : '';
-      record.fileName = uuidv4();
+      record.fileName = this.getSha1Hash(blobSource.url);
       record.etag = _.trim((response.headers['etag'] || '') as string, '"');
       record.contentType = response.headers['content-type'] || '';
       record.sha1 = this.getSha1Hash(response.body);
