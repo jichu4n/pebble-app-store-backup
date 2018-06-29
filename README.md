@@ -19,7 +19,7 @@ npm run scrape-metadata
 npm run scrape-blob
 ```
 
-The `npm run scrape-blob` script takes multiple hours to complete depending on your connection speed, and may fail for random listings due to transient network issues.
+The `npm run scrape-blob` script takes several hours to complete depending on your connection speed, and may fail for random listings due to transient network issues.
 
 To resume or retry failed listings, just re-run the script.
 Since it tracks progress internally (via `data/blobs/*/index.json` files), re-running will just skip over already downloaded files.
@@ -73,7 +73,7 @@ Note regarding the fields:
 
 ## Data
 
-Data downloaded on June 19, 2018:
+Data downloaded on June 29, 2018:
 
 - **Metadata**: [`data/metadata`](https://github.com/jichu4n/pebble-app-store-backup/tree/master/data/metadata)
 - **Metadata and blobs** (PBW files and images): [Google Drive](https://drive.google.com/open?id=1gtf7xguGPUIRRsZi8ZCwDrYe7mQI39X_)
