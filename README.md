@@ -73,7 +73,7 @@ Note regarding the fields:
 
 ## Data
 
-Data downloaded on June 29, 2018:
+Data downloaded on June 30, 2018:
 
 - **Metadata**: [`data/metadata`](https://github.com/jichu4n/pebble-app-store-backup/tree/master/data/metadata)
 - **Metadata and blobs** (PBW files and images): [Google Drive](https://drive.google.com/open?id=1gtf7xguGPUIRRsZi8ZCwDrYe7mQI39X_)
